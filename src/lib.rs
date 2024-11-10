@@ -8,6 +8,17 @@ mod tests {
 
     use super::*;
 
+    fn cleanup_mopac_output(basename: &str) -> std::io::Result<()> {
+        let b = std::path::Path::new(basename);
+        for ext in ["arc", "aux", "out"] {
+            let p = b.with_extension(ext);
+            if p.exists() {
+                std::fs::remove_file(p)?;
+            }
+        }
+        Ok(())
+    }
+
     #[test]
     fn run_mopac_from_input_works() {
         let name = CString::new("testfiles/try.mop").unwrap();
@@ -22,5 +33,7 @@ mod tests {
         assert!(got.cart_geom.is_some());
         assert_eq!(got.cart_geom.as_ref().unwrap().len(), 5);
         assert_eq!(got.energy, 0.204457543878102);
+
+        cleanup_mopac_output("testfiles/try").unwrap();
     }
 }
