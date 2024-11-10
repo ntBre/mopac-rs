@@ -2,11 +2,7 @@ include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 
 #[cfg(test)]
 mod tests {
-    use std::{
-        ffi::{CStr, CString},
-        mem::MaybeUninit,
-        ptr::null_mut,
-    };
+    use std::{ffi::CString, mem::MaybeUninit, ptr::null_mut};
 
     use psqs::program::{mopac::Mopac, Program};
 
