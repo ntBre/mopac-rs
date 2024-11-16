@@ -288,7 +288,9 @@ checksum = "68354c5c6bd36d73ff3feceb05efa59b6acb7626617f4962be322a825e61f79a"
 name = "mopac"
 version = "0.1.0"
 dependencies = [
+ "approx",
  "mopac-sys",
+ "symm",
 ]
 
 [[package]]
@@ -584,7 +586,7 @@ dependencies = [
 [[package]]
 name = "symm"
 version = "0.1.0"
-source = "git+https://github.com/ntBre/symm#39161c959507d4216967ed85b282c664c88bd19a"
+source = "git+https://github.com/ntBre/symm#e87c30859f4fc0d02269330230f39a474235afd2"
 dependencies = [
  "approx",
  "nalgebra",

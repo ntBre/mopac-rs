@@ -5,3 +5,7 @@ edition = "2021"
 
 [dependencies]
 mopac-sys = { path = "../mopac-sys" }
+symm = { git = "https://github.com/ntBre/symm" }
+
+[dev-dependencies]
+approx = "0.5.1"
