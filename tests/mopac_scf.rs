@@ -1,4 +1,4 @@
-use std::mem::MaybeUninit;
+use std::{mem::MaybeUninit, path::Path};
 
 use approx::assert_abs_diff_eq;
 use mopac_rs::{create_mopac_state, mopac_scf, mopac_system};
@@ -52,4 +52,11 @@ fn main() {
 
     assert_eq!(props.nerror, 0);
     assert_abs_diff_eq!(props.heat, C3H2_ENERGY_KCAL_MOL, epsilon = 1e-8);
+
+    let path = Path::new("fort.26");
+    if path.exists() {
+        std::fs::remove_file(path).unwrap_or_else(|e| {
+            eprintln!("failed to remove fort.26 with {e:?}")
+        });
+    }
 }
