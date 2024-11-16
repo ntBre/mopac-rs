@@ -87,6 +87,12 @@ impl Properties {
     }
 }
 
+impl Drop for Properties {
+    fn drop(&mut self) {
+        unsafe { mopac_sys::destroy_mopac_properties(&mut self.0) }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use approx::assert_abs_diff_eq;
