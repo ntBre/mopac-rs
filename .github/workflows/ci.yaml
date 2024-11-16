@@ -4,9 +4,9 @@ on:
   push:
     branches: [master]
   pull_request:
-name: test
+name: ci
 jobs:
-  test:
+  required:
     runs-on: ubuntu-latest
     name: ubuntu / ${{ matrix.toolchain }}
     strategy:
@@ -20,6 +20,9 @@ jobs:
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ matrix.toolchain }}
+          components:
+            - rustfmt
+            - clippy
       - name: cargo generate-lockfile
         if: hashFiles('Cargo.lock') == ''
         run: cargo generate-lockfile
@@ -41,7 +44,23 @@ jobs:
             cd build
             cmake ..
             make
-      - name: cargo test --locked
+
+      - name: Set MOPAC_PATH
+        run: echo "MOPAC_PATH=${{ github.workspace }}/upstream" >> "$GITHUB_ENV"
+
+      - name: cargo fmt --check --all
+        run: cargo fmt --check --all
+
+      - name: cargo clippy
+        uses: actions-rs/clippy-check@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          args: --all-targets --all-features --workspace -- -D warnings
+
+      - name: cargo doc
+        run: cargo doc --no-deps --all-features
         env:
-          MOPAC_PATH: ${{ github.workspace }}/upstream
+          RUSTDOCFLAGS: --cfg docsrs
+
+      - name: cargo test --locked
         run: cargo test --workspace --locked --all-features --all-targets -- --include-ignored
