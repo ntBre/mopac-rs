@@ -28,21 +28,20 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            mopac/build/mopac
-            mopac/build/libmopac.so.1
-            mopac/include/mopac.h
+            upstream/build/libmopac.so.1
+            upstream/include/mopac.h
           key: ${{ runner.os }}-build-mopac
       - name: install mopac
         if: steps.cache-mopac.outputs.cache-hit != 'true'
         run: |
             sudo apt install -y python3 python3-numpy
-            git clone https://github.com/openmopac/mopac.git
-            cd mopac
+            git clone https://github.com/openmopac/mopac.git upstream
+            cd upstream
             mkdir build
             cd build
             cmake ..
             make
       - name: cargo test --locked
         env:
-          MOPAC_PATH: ${{ github.workspace }}/mopac
+          MOPAC_PATH: ${{ github.workspace }}/upstream
         run: cargo test --workspace --locked --all-features --all-targets -- --include-ignored
