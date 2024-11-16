@@ -1,7 +1,7 @@
 use std::{ffi::CStr, mem::MaybeUninit};
 
 use mopac_sys::{
-    create_mopac_state, mopac_properties, mopac_scf, mopac_system,
+    create_mopac_state, mopac_properties, mopac_scf, mopac_state, mopac_system,
 };
 
 pub use symm::Molecule;
@@ -49,17 +49,11 @@ impl System {
     }
 
     pub fn scf(&mut self) -> Result<Properties, Vec<String>> {
-        let mut state = unsafe {
-            let mut state = MaybeUninit::uninit();
-            create_mopac_state(state.as_mut_ptr());
-            let mut state = state.assume_init();
-            state.mpack = 0;
-            state
-        };
+        let mut state = State::default();
 
         let props = unsafe {
             let mut props = MaybeUninit::uninit();
-            mopac_scf(&mut self.system, &mut state, props.as_mut_ptr());
+            mopac_scf(&mut self.system, &mut state.0, props.as_mut_ptr());
             props.assume_init()
         };
 
@@ -90,6 +84,26 @@ impl Properties {
 impl Drop for Properties {
     fn drop(&mut self) {
         unsafe { mopac_sys::destroy_mopac_properties(&mut self.0) }
+    }
+}
+
+pub struct State(mopac_state);
+
+impl Default for State {
+    fn default() -> Self {
+        let mut state = unsafe {
+            let mut state = MaybeUninit::uninit();
+            create_mopac_state(state.as_mut_ptr());
+            state.assume_init()
+        };
+        state.mpack = 0;
+        Self(state)
+    }
+}
+
+impl Drop for State {
+    fn drop(&mut self) {
+        unsafe { mopac_sys::destroy_mopac_state(&mut self.0) }
     }
 }
 
