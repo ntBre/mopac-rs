@@ -42,6 +42,7 @@ fn main() {
         create_mopac_state(state.as_mut_ptr());
         state.assume_init()
     };
+    state.mpack = 0;
 
     // this can be uninitialized and should be allocated by mopac
     let props = unsafe {
