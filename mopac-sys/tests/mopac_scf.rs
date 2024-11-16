@@ -1,7 +1,7 @@
 use std::{mem::MaybeUninit, path::Path};
 
 use approx::assert_abs_diff_eq;
-use mopac_rs::{create_mopac_state, mopac_scf, mopac_system};
+use mopac_sys::{create_mopac_state, mopac_scf, mopac_system};
 
 use common::C3H2_ENERGY_KCAL_MOL;
 

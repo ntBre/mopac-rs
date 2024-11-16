@@ -1,0 +1,7 @@
+[package]
+name = "mopac"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+mopac-sys = { path = "../mopac-sys" }

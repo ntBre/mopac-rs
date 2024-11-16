@@ -7,7 +7,7 @@ use psqs::program::{
 };
 use tempfile::NamedTempFile;
 
-use mopac_rs::run_mopac_from_input;
+use mopac_sys::run_mopac_from_input;
 
 use common::C3H2_ENERGY_KCAL_MOL;
 
