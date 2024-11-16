@@ -6,7 +6,7 @@ on:
   pull_request:
 name: test
 jobs:
-  required:
+  test:
     runs-on: ubuntu-latest
     name: ubuntu / ${{ matrix.toolchain }}
     strategy:
@@ -30,6 +30,7 @@ jobs:
           path: |
             mopac/build/mopac
             mopac/build/libmopac.so.1
+            mopac/include/mopac.h
           key: ${{ runner.os }}-build-mopac
       - name: install mopac
         if: steps.cache-mopac.outputs.cache-hit != 'true'
@@ -41,10 +42,7 @@ jobs:
             cd build
             cmake ..
             make
-      - name: copy over mopac
-        run: |
-            mkdir -p /opt/mopac
-            cp mopac/build/mopac /opt/mopac/.
-      # https://twitter.com/jonhoo/status/1571290371124260865
       - name: cargo test --locked
-        run: cargo test --locked --all-features --all-targets -- --include-ignored
+        env:
+          MOPAC_PATH: ${{ github.workspace }}/mopac
+        run: cargo test --workspace --locked --all-features --all-targets -- --include-ignored
