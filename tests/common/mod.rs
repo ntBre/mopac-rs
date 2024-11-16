@@ -1,0 +1,1 @@
+pub const C3H2_ENERGY_KCAL_MOL: f64 = 128.29898588;

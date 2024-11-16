@@ -9,4 +9,6 @@ edition = "2021"
 bindgen = "0.70.1"
 
 [dev-dependencies]
+approx = "0.5.1"
 psqs = { git = "https://github.com/ntBre/psqs" }
+tempfile = "3.14.0"
