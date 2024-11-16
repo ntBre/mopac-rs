@@ -6,6 +6,8 @@ fn main() {
         std::process::exit(1);
     };
 
+    println!("cargo:rerun-if-env-changed=MOPAC_PATH");
+
     println!("cargo:rustc-link-search={mopac_path}/build");
     println!("cargo:rustc-link-lib=mopac");
 
