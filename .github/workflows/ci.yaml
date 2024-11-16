@@ -30,7 +30,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            upstream/build/libmopac.so.1
+            upstream/build/libmopac.so
             upstream/include/mopac.h
           key: ${{ runner.os }}-build-mopac
       - name: install mopac
