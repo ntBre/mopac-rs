@@ -95,7 +95,7 @@ use std::{ffi::CStr, mem::MaybeUninit};
 
 use mopac_sys::{
     create_mopac_state, mopac_properties, mopac_relax, mopac_scf, mopac_state,
-    mopac_system,
+    mopac_system, mopac_vibe,
 };
 
 pub use symm::{molecule, Atom, Molecule};
@@ -178,6 +178,24 @@ impl System {
         Ok(props)
     }
 
+    /// Compute the harmonic frequencies for `self`.
+    pub fn frequencies(&mut self) -> Result<Properties, Vec<String>> {
+        let mut state = State::default();
+
+        let props = unsafe {
+            let mut props = MaybeUninit::uninit();
+            mopac_vibe(&mut self.system, &mut state.0, props.as_mut_ptr());
+            Properties {
+                inner: props.assume_init(),
+                natoms: self.system.natom as usize,
+            }
+        };
+
+        props.check_errors()?;
+
+        Ok(props)
+    }
+
     pub fn coordinates(&self) -> &[f64] {
         &self.coordinates
     }
@@ -200,11 +218,19 @@ impl Properties {
         // [mopac_system::natom] as [mopac_system::natom_move]. According to the
         // API docs, `coord_update` should thus be initialized with the proper
         // length.
+        assert!(!self.inner.coord_update.is_null());
         unsafe {
             &*std::ptr::slice_from_raw_parts(
                 self.inner.coord_update,
                 3 * self.natoms,
             )
+        }
+    }
+
+    pub fn frequencies(&self) -> &[f64] {
+        assert!(!self.inner.freq.is_null());
+        unsafe {
+            &*std::ptr::slice_from_raw_parts(self.inner.freq, 3 * self.natoms)
         }
     }
 
@@ -230,6 +256,7 @@ impl Drop for Properties {
     }
 }
 
+#[cfg_attr(test, derive(Debug))]
 pub struct State(mopac_state);
 
 impl Default for State {
@@ -294,5 +321,33 @@ mod tests {
         // Check the final energy, note the difference from the unoptimized
         // geometry above
         assert_abs_diff_eq!(props.final_energy(), 126.60240432, epsilon = 1e-8);
+    }
+
+    #[test]
+    fn c3h2_freqs() {
+        let mut system = System::new(c3h2(), 0, 0);
+        // for some reason scf won't converge with the default 1e-8
+        system.system.tolerance = 1e-4;
+        let props = system.frequencies().unwrap();
+
+        let want = [
+            -233.0134837743131,
+            -202.55035772854717,
+            -166.25090736634493,
+            0.029256741968343082,
+            0.03073549436336908,
+            0.03290405665074747,
+            970.8366647056642,
+            988.6960714808775,
+            995.2425137409377,
+            1011.892959945535,
+            1089.2667229480483,
+            1289.7297315059488,
+            1951.9313829222758,
+            2737.278109703735,
+            2772.1784613501504,
+        ];
+
+        assert_abs_diff_eq!(&want[..], props.frequencies(), epsilon = 1e-1);
     }
 }
