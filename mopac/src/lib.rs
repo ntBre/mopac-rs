@@ -54,21 +54,12 @@ impl System {
         let props = unsafe {
             let mut props = MaybeUninit::uninit();
             mopac_scf(&mut self.system, &mut state.0, props.as_mut_ptr());
-            props.assume_init()
+            Properties(props.assume_init())
         };
 
-        if props.nerror > 0 {
-            let mut ret = Vec::new();
-            for i in 0..props.nerror {
-                let s = unsafe {
-                    CStr::from_ptr(*props.error_msg.offset(i as isize))
-                };
-                ret.push(s.to_string_lossy().to_string());
-            }
-            return Err(ret);
-        }
+        props.check_errors()?;
 
-        Ok(Properties(props))
+        Ok(props)
     }
 }
 
@@ -78,6 +69,21 @@ impl Properties {
     /// Return the final heat of formation in kcal/mol
     pub fn final_energy(&self) -> f64 {
         self.0.heat
+    }
+
+    fn check_errors(&self) -> Result<(), Vec<String>> {
+        if self.0.nerror > 0 {
+            let mut ret = Vec::new();
+            for i in 0..self.0.nerror {
+                let s = unsafe {
+                    CStr::from_ptr(*self.0.error_msg.offset(i as isize))
+                };
+                ret.push(s.to_string_lossy().to_string());
+            }
+            return Err(ret);
+        }
+
+        Ok(())
     }
 }
 
