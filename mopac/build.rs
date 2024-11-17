@@ -3,8 +3,8 @@ fn main() {
         eprintln!("MOPAC_PATH must be set to dir containing build/libmopac.so");
         std::process::exit(1);
     };
-
     println!("cargo:rerun-if-env-changed=MOPAC_PATH");
-
+    println!("cargo:rustc-link-search={mopac_path}/build");
+    println!("cargo:rustc-link-lib=mopac");
     println!("cargo:rustc-link-arg=-Wl,-rpath,{mopac_path}/build");
 }

@@ -1,0 +1,57 @@
+permissions:
+  contents: read
+  checks: write
+on:
+  push:
+    branches: [master]
+  pull_request:
+name: ci
+jobs:
+  required:
+    runs-on: ubuntu-latest
+    name: ubuntu / ${{ matrix.toolchain }}
+    strategy:
+      matrix:
+        toolchain: [nightly]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - name: Install ${{ matrix.toolchain }}
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.toolchain }}
+          components: rustfmt, clippy
+      - name: cargo generate-lockfile
+        if: hashFiles('Cargo.lock') == ''
+        run: cargo generate-lockfile
+
+      - name: install mopac
+        run: |
+            sudo apt install -y python3 python3-numpy
+            git clone https://github.com/openmopac/mopac.git upstream
+            cd upstream
+            mkdir build
+            cd build
+            cmake ..
+            make
+
+      - name: Set MOPAC_PATH
+        run: echo "MOPAC_PATH=${{ github.workspace }}/upstream" >> "$GITHUB_ENV"
+
+      - name: cargo fmt --check --all
+        run: cargo fmt --check --all
+
+      - name: cargo clippy
+        uses: actions-rs/clippy-check@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          args: --all-targets --all-features --workspace -- -D warnings
+
+      - name: cargo doc
+        run: cargo doc --no-deps --all-features
+        env:
+          RUSTDOCFLAGS: --cfg docsrs
+
+      - name: cargo test --locked
+        run: cargo test --workspace --locked --all-features --all-targets -- --include-ignored
