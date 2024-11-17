@@ -54,4 +54,4 @@ jobs:
           RUSTDOCFLAGS: --cfg docsrs
 
       - name: cargo test --locked
-        run: cargo test --workspace --locked --all-features --all-targets -- --include-ignored
+        run: cargo test --workspace --locked --all-features --all-targets -- --include-ignored --test-threads=1
