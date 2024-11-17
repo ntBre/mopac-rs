@@ -1,7 +1,8 @@
 use std::{ffi::CStr, mem::MaybeUninit};
 
 use mopac_sys::{
-    create_mopac_state, mopac_properties, mopac_scf, mopac_state, mopac_system,
+    create_mopac_state, mopac_properties, mopac_relax, mopac_scf, mopac_state,
+    mopac_system,
 };
 
 pub use symm::Molecule;
@@ -54,7 +55,27 @@ impl System {
         let props = unsafe {
             let mut props = MaybeUninit::uninit();
             mopac_scf(&mut self.system, &mut state.0, props.as_mut_ptr());
-            Properties(props.assume_init())
+            Properties {
+                inner: props.assume_init(),
+                natoms: self.system.natom as usize,
+            }
+        };
+
+        props.check_errors()?;
+
+        Ok(props)
+    }
+
+    pub fn optimize(&mut self) -> Result<Properties, Vec<String>> {
+        let mut state = State::default();
+
+        let props = unsafe {
+            let mut props = MaybeUninit::uninit();
+            mopac_relax(&mut self.system, &mut state.0, props.as_mut_ptr());
+            Properties {
+                inner: props.assume_init(),
+                natoms: self.system.natom as usize,
+            }
         };
 
         props.check_errors()?;
@@ -63,20 +84,37 @@ impl System {
     }
 }
 
-pub struct Properties(mopac_properties);
+pub struct Properties {
+    natoms: usize,
+    inner: mopac_properties,
+}
 
 impl Properties {
     /// Return the final heat of formation in kcal/mol
     pub fn final_energy(&self) -> f64 {
-        self.0.heat
+        self.inner.heat
+    }
+
+    pub fn coordinates(&self) -> &[f64] {
+        // Safety: `self` can only be constructed by a successful return of one
+        // of the [State::scf] or [State::optimize] calls, which both pass
+        // [mopac_system::natom] as [mopac_system::natom_move]. According to the
+        // API docs, `coord_update` should thus be initialized with the proper
+        // length.
+        unsafe {
+            &*std::ptr::slice_from_raw_parts(
+                self.inner.coord_update,
+                3 * self.natoms,
+            )
+        }
     }
 
     fn check_errors(&self) -> Result<(), Vec<String>> {
-        if self.0.nerror > 0 {
+        if self.inner.nerror > 0 {
             let mut ret = Vec::new();
-            for i in 0..self.0.nerror {
+            for i in 0..self.inner.nerror {
                 let s = unsafe {
-                    CStr::from_ptr(*self.0.error_msg.offset(i as isize))
+                    CStr::from_ptr(*self.inner.error_msg.offset(i as isize))
                 };
                 ret.push(s.to_string_lossy().to_string());
             }
@@ -89,7 +127,7 @@ impl Properties {
 
 impl Drop for Properties {
     fn drop(&mut self) {
-        unsafe { mopac_sys::destroy_mopac_properties(&mut self.0) }
+        unsafe { mopac_sys::destroy_mopac_properties(&mut self.inner) }
     }
 }
 
@@ -120,8 +158,7 @@ mod tests {
 
     use super::*;
 
-    #[test]
-    fn c3h2_scf() {
+    fn c3h2() -> Molecule {
         let mut mol = molecule! {
             C      0.000000000000      0.003768239200     -1.686245109400
             C      0.000000000000      1.243805099800      0.688097726900
@@ -130,9 +167,33 @@ mod tests {
             H      0.000000000000     -3.003808100200      1.718996398400
         };
         mol.to_angstrom();
-        let mut system = System::new(mol, 0, 0);
+        mol
+    }
+
+    #[test]
+    fn c3h2_scf() {
+        let mut system = System::new(c3h2(), 0, 0);
         let props = system.scf().unwrap();
 
         assert_abs_diff_eq!(props.final_energy(), 128.29901260, epsilon = 1e-8);
+    }
+
+    #[test]
+    fn c3h2_opt() {
+        let mut system = System::new(c3h2(), 0, 0);
+
+        let props = system.optimize().unwrap();
+        let coords_init = &system._coordinates[..];
+        let coords_final = props.coordinates();
+
+        // Make sure some optimization occurred
+        assert_ne!(coords_init, coords_final);
+
+        // but not too much
+        assert_abs_diff_eq!(coords_init, props.coordinates(), epsilon = 1e-1);
+
+        // Check the final energy, note the difference from the unoptimized
+        // geometry above
+        assert_abs_diff_eq!(props.final_energy(), 126.60240431, epsilon = 1e-8);
     }
 }
