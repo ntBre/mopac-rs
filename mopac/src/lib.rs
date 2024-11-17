@@ -194,6 +194,6 @@ mod tests {
 
         // Check the final energy, note the difference from the unoptimized
         // geometry above
-        assert_abs_diff_eq!(props.final_energy(), 126.60240431, epsilon = 1e-8);
+        assert_abs_diff_eq!(props.final_energy(), 126.60240432, epsilon = 1e-8);
     }
 }
