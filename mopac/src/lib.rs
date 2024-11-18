@@ -118,7 +118,7 @@
 //! );
 //! ```
 
-use std::{ffi::CStr, mem::MaybeUninit};
+use std::{ffi::CStr, marker::PhantomData, mem::MaybeUninit};
 
 use mopac_sys::{
     create_mopac_state, mopac_properties, mopac_relax, mopac_scf, mopac_state,
@@ -176,7 +176,7 @@ impl System {
         self
     }
 
-    pub fn scf(&mut self) -> Result<Properties, Vec<String>> {
+    pub fn scf(&mut self) -> Result<Properties<SinglePoint>, Vec<String>> {
         let mut state = State::default();
 
         let props = unsafe {
@@ -185,6 +185,7 @@ impl System {
             Properties {
                 inner: props.assume_init(),
                 natoms: self.system.natom as usize,
+                state: PhantomData,
             }
         };
 
@@ -193,7 +194,9 @@ impl System {
         Ok(props)
     }
 
-    pub fn optimize(&mut self) -> Result<Properties, Vec<String>> {
+    pub fn optimize(
+        &mut self,
+    ) -> Result<Properties<Optimization>, Vec<String>> {
         let mut state = State::default();
 
         let props = unsafe {
@@ -202,6 +205,7 @@ impl System {
             Properties {
                 inner: props.assume_init(),
                 natoms: self.system.natom as usize,
+                state: PhantomData,
             }
         };
 
@@ -211,7 +215,9 @@ impl System {
     }
 
     /// Compute the harmonic frequencies for `self`.
-    pub fn frequencies(&mut self) -> Result<Properties, Vec<String>> {
+    pub fn frequencies(
+        &mut self,
+    ) -> Result<Properties<Frequencies>, Vec<String>> {
         let mut state = State::default();
 
         let props = unsafe {
@@ -220,6 +226,7 @@ impl System {
             Properties {
                 inner: props.assume_init(),
                 natoms: self.system.natom as usize,
+                state: PhantomData,
             }
         };
 
@@ -233,37 +240,26 @@ impl System {
     }
 }
 
-pub struct Properties {
+pub trait PropertyType {}
+
+pub struct SinglePoint;
+pub struct Optimization;
+pub struct Frequencies;
+
+impl PropertyType for SinglePoint {}
+impl PropertyType for Optimization {}
+impl PropertyType for Frequencies {}
+
+pub struct Properties<P: PropertyType> {
     natoms: usize,
     inner: mopac_properties,
+    state: PhantomData<P>,
 }
 
-impl Properties {
+impl<P: PropertyType> Properties<P> {
     /// Return the final heat of formation in kcal/mol
     pub fn final_energy(&self) -> f64 {
         self.inner.heat
-    }
-
-    pub fn coordinates(&self) -> &[f64] {
-        // Safety: `self` can only be constructed by a successful return of one
-        // of the [State::scf] or [State::optimize] calls, which both pass
-        // [mopac_system::natom] as [mopac_system::natom_move]. According to the
-        // API docs, `coord_update` should thus be initialized with the proper
-        // length.
-        assert!(!self.inner.coord_update.is_null());
-        unsafe {
-            &*std::ptr::slice_from_raw_parts(
-                self.inner.coord_update,
-                3 * self.natoms,
-            )
-        }
-    }
-
-    pub fn frequencies(&self) -> &[f64] {
-        assert!(!self.inner.freq.is_null());
-        unsafe {
-            &*std::ptr::slice_from_raw_parts(self.inner.freq, 3 * self.natoms)
-        }
     }
 
     fn check_errors(&self) -> Result<(), Vec<String>> {
@@ -282,7 +278,37 @@ impl Properties {
     }
 }
 
-impl Drop for Properties {
+impl Properties<Optimization> {
+    pub fn coordinates(&self) -> &[f64] {
+        // Safety: `self` can only be constructed by a successful return of one
+        // of the [State::optimize] call, which passes [mopac_system::natom] as
+        // [mopac_system::natom_move]. According to the API docs, `coord_update`
+        // should thus be initialized with the proper length.
+        assert!(!self.inner.coord_update.is_null());
+        unsafe {
+            &*std::ptr::slice_from_raw_parts(
+                self.inner.coord_update,
+                3 * self.natoms,
+            )
+        }
+    }
+}
+
+impl Properties<Frequencies> {
+    pub fn frequencies(&self) -> &[f64] {
+        // Safety: `self` can only be constructed by calling
+        // [State::frequencies], which initializes `self.natoms`, calls
+        // `mopac_vibe`, which should initialize this to the right size accoring
+        // to the API docs, and only returns the properties if there were no
+        // errors.
+        assert!(!self.inner.freq.is_null());
+        unsafe {
+            &*std::ptr::slice_from_raw_parts(self.inner.freq, 3 * self.natoms)
+        }
+    }
+}
+
+impl<P: PropertyType> Drop for Properties<P> {
     fn drop(&mut self) {
         unsafe { mopac_sys::destroy_mopac_properties(&mut self.inner) }
     }
