@@ -89,7 +89,34 @@
 //!
 //! ## Harmonic frequencies
 //!
-//! TODO
+//! Finally, you can compute the harmonic vibrational frequencies with
+//! [System::frequencies] and retrieve the results with
+//! [Properties::frequencies]:
+//!
+//! ```
+//! use mopac::{molecule, System};
+//!
+//! let mol = molecule! {
+//!    C      0.000000000000      0.001993398537     -0.892023662873
+//!    C      0.000000000000      0.657972897794      0.364003697530
+//!    C      0.000000000000     -0.657088959796      0.370357841548
+//!    H      0.000000000000      1.586137148417      0.909446526185
+//!    H      0.000000000000     -1.589014485006      0.909349094754
+//! };
+//! // SCF calculations often fail at the default 1e-8 tolerance for some reason
+//! let mut system = System::new(mol, 0, 0).tolerance(1e-4);
+//! let props = system.frequencies().unwrap();
+//! let freqs = props.frequencies().to_vec();
+//! let mut freqs: Vec<_> = freqs
+//!     .into_iter()
+//!     .filter_map(|f| if f > 10.0 { Some(f.round()) } else { None })
+//!     .collect();
+//! freqs.reverse();
+//! assert_eq!(
+//!     freqs,
+//!     [2774.0, 2739.0, 1954.0, 1291.0, 1090.0, 1011.0, 994.0, 989.0, 970.0],
+//! );
+//! ```
 
 use std::{ffi::CStr, mem::MaybeUninit};
 
