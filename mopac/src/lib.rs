@@ -144,6 +144,11 @@ impl System {
         }
     }
 
+    pub fn tolerance(mut self, tolerance: f64) -> Self {
+        self.system.tolerance = tolerance;
+        self
+    }
+
     pub fn scf(&mut self) -> Result<Properties, Vec<String>> {
         let mut state = State::default();
 
